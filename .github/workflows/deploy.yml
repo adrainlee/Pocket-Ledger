@@ -1,0 +1,75 @@
+name: Deploy
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types:
+      - completed
+    branches: [ main ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup SSH
+      run: |
+        mkdir -p ~/.ssh
+        echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
+        chmod 600 ~/.ssh/deploy_key
+        echo "Host ${{ secrets.SERVER_HOST }}" > ~/.ssh/config
+        echo "  HostName ${{ secrets.SERVER_HOST }}" >> ~/.ssh/config
+        echo "  Port ${{ secrets.SSH_PORT }}" >> ~/.ssh/config
+        echo "  IdentityFile ~/.ssh/deploy_key" >> ~/.ssh/config
+        echo "  User ${{ secrets.SERVER_USERNAME }}" >> ~/.ssh/config
+        ssh-keyscan -H -p ${{ secrets.SSH_PORT }} ${{ secrets.SERVER_HOST }} >> ~/.ssh/known_hosts
+    
+    - name: Deploy to server
+      env:
+        POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
+        POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
+        POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+        DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      run: |
+        ssh ${{ secrets.SERVER_USERNAME }}@${{ secrets.SERVER_HOST }} "
+          # 设置NVM环境
+          export NVM_DIR=\"\$HOME/.nvm\"
+          [ -s \"\$NVM_DIR/nvm.sh\" ] && \. \"\$NVM_DIR/nvm.sh\"
+          
+          # 进入项目目录
+          cd ${{ secrets.DEPLOY_PATH }}
+          
+          # 拉取最新代码
+          git pull origin main
+          
+          # 设置环境变量
+          echo \"POSTGRES_DB=${{ secrets.POSTGRES_DB }}\" > .env
+          echo \"POSTGRES_USER=${{ secrets.POSTGRES_USER }}\" >> .env
+          echo \"POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}\" >> .env
+          echo \"DATABASE_URL=${{ secrets.DATABASE_URL }}\" >> .env
+          
+          # 启动或重启Docker服务
+          docker compose down
+          docker compose up -d
+          
+          # 等待数据库服务就绪
+          echo 'Waiting for database to be ready...'
+          sleep 10
+          
+          # 设置Node版本并安装依赖
+          nvm use 18
+          npm ci
+          
+          # 运行数据库迁移
+          npx prisma generate
+          npx prisma migrate deploy
+          
+          # 构建应用
+          npm run build
+          
+          # 重启应用服务
+          pm2 restart expense-tracker || pm2 start npm --name \"expense-tracker\" -- start
+        "
