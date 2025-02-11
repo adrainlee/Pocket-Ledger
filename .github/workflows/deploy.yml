@@ -51,24 +51,22 @@ jobs:
             git remote add origin https://github.com/adrainlee/Pocket-Ledger.git
           fi
           
-          # 保存当前的.env文件（如果存在）
-          if [ -f .env ]; then
-            echo '备份现有的.env文件...'
-            cp .env .env.backup
-          fi
-          
           # 拉取最新代码
           echo '拉取最新代码...'
           git fetch origin main
           git reset --hard origin/main
           
-          # 创建或更新环境变量文件
+          # 创建环境变量文件
           echo '配置环境变量...'
           cat > .env << EOL
-          POSTGRES_DB=expense_tracker
-          POSTGRES_USER=postgres
-          POSTGRES_PASSWORD=postgres
-          DATABASE_URL=postgresql://postgres:postgres@localhost:5432/expense_tracker
+          # Database configuration
+          POSTGRES_DB=${{ secrets.POSTGRES_DB }}
+          POSTGRES_USER=${{ secrets.POSTGRES_USER }}
+          POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
+          DATABASE_URL=postgresql://${{ secrets.POSTGRES_USER }}:${{ secrets.POSTGRES_PASSWORD }}@localhost:5432/${{ secrets.POSTGRES_DB }}?schema=public
+          
+          # Environment
+          NODE_ENV=production
           EOL
           
           # 确保Node.js 18已安装
@@ -98,7 +96,7 @@ jobs:
           
           # 验证数据库连接
           echo '验证数据库连接...'
-          echo '数据库URL：' \$(grep DATABASE_URL .env)
+          echo '数据库配置已设置（不显示敏感信息）'
           
           # 运行数据库迁移
           echo '运行数据库迁移...'
