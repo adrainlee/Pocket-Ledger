@@ -34,23 +34,51 @@ jobs:
           export NVM_DIR=\"\$HOME/.nvm\"
           [ -s \"\$NVM_DIR/nvm.sh\" ] && \. \"\$NVM_DIR/nvm.sh\"
           
+          # 如果部署目录不存在，创建它
+          mkdir -p ${{ secrets.DEPLOY_PATH }}
+          
           # 进入项目目录
           cd ${{ secrets.DEPLOY_PATH }}
           
+          # 如果不是git仓库，初始化它
+          if [ ! -d .git ]; then
+            git init
+            git remote add origin https://github.com/adrainlee/Pocket-Ledger.git
+          fi
+          
+          # 保存当前的.env文件（如果存在）
+          if [ -f .env ]; then
+            cp .env .env.backup
+          fi
+          
           # 拉取最新代码
-          git pull origin main
+          git fetch origin main
+          git reset --hard origin/main
+          
+          # 恢复.env文件
+          if [ -f .env.backup ]; then
+            mv .env.backup .env
+          fi
+          
+          # 确保Node.js 18已安装
+          nvm install 18
+          nvm use 18
+          
+          # 全局安装PM2（如果未安装）
+          if ! command -v pm2 &> /dev/null; then
+            npm install -g pm2
+          fi
           
           # 启动或重启Docker服务
-          docker compose down
+          docker compose down || true
           docker compose up -d
           
           # 等待数据库服务就绪
           echo 'Waiting for database to be ready...'
           sleep 10
           
-          # 设置Node版本并安装依赖
-          nvm use 18
-          npm ci
+          # 安装依赖
+          npm install
           
           # 运行数据库迁移
           npx prisma generate
@@ -60,5 +88,5 @@ jobs:
           npm run build
           
           # 重启应用服务
-          pm2 restart expense-tracker || pm2 start npm --name \"expense-tracker\" -- start
+          pm2 restart expense-tracker || pm2 start 'npm run start' --name \"expense-tracker\"
         "
