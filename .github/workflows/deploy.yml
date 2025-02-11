@@ -62,11 +62,14 @@ jobs:
           git fetch origin main
           git reset --hard origin/main
           
-          # 恢复.env文件
-          if [ -f .env.backup ]; then
-            echo '恢复.env文件...'
-            mv .env.backup .env
-          fi
+          # 创建或更新环境变量文件
+          echo '配置环境变量...'
+          cat > .env << EOL
+          POSTGRES_DB=expense_tracker
+          POSTGRES_USER=postgres
+          POSTGRES_PASSWORD=postgres
+          DATABASE_URL=postgresql://postgres:postgres@localhost:5432/expense_tracker
+          EOL
           
           # 确保Node.js 18已安装
           echo '设置Node.js环境...'
@@ -95,12 +98,7 @@ jobs:
           
           # 验证数据库连接
           echo '验证数据库连接...'
-          if [ -f .env ]; then
-            echo '数据库URL格式检查...'
-            grep DATABASE_URL .env || echo 'WARNING: DATABASE_URL not found in .env'
-          else
-            echo 'WARNING: .env file not found'
-          fi
+          echo '数据库URL：' \$(grep DATABASE_URL .env)
           
           # 运行数据库迁移
           echo '运行数据库迁移...'
@@ -113,9 +111,7 @@ jobs:
           
           # 确保生产环境变量正确设置
           echo '设置生产环境变量...'
-          if [ ! -f .env.production ]; then
-            cp .env .env.production
-          fi
+          cp .env .env.production
           
           # 重启应用服务
           echo '重启应用服务...'
