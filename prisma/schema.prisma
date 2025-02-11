@@ -1,0 +1,48 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum ExpenseCategory {
+  FOOD       @map("餐饮")
+  TRANSPORT  @map("交通")
+  MEDICAL    @map("医疗")
+  JD         @map("京东")
+  TAOBAO     @map("淘宝")
+  PDD        @map("拼多多")
+  SUPERMARKET @map("商超")
+  HOUSING    @map("居住")
+  COMM       @map("通讯")
+  OTHER      @map("其他")
+
+  @@map("expense_category")
+}
+
+/// A custom expense category defined by users
+model Category {
+  id        Int      @id @default(autoincrement())
+  key       String   @unique
+  label     String
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  @@map("custom_categories")
+}
+
+model Expense {
+  id        Int             @id @default(autoincrement())
+  amount    Decimal         @db.Decimal(10, 2)
+  category  ExpenseCategory
+  date      DateTime        @db.Date
+  note      String?
+  createdAt DateTime        @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime        @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  @@map("expenses")
+  @@index([date])
+  @@index([category])
+}
