@@ -30,6 +30,9 @@ jobs:
     - name: Deploy to server
       run: |
         ssh ${{ secrets.SERVER_USERNAME }}@${{ secrets.SERVER_HOST }} "
+          set -e
+          echo '开始部署流程...'
+          
           # 设置NVM环境
           export NVM_DIR=\"\$HOME/.nvm\"
           [ -s \"\$NVM_DIR/nvm.sh\" ] && \. \"\$NVM_DIR/nvm.sh\"
@@ -39,54 +42,88 @@ jobs:
           
           # 进入项目目录
           cd ${{ secrets.DEPLOY_PATH }}
+          echo '切换到项目目录: '\$(pwd)
           
           # 如果不是git仓库，初始化它
           if [ ! -d .git ]; then
+            echo '初始化Git仓库...'
             git init
             git remote add origin https://github.com/adrainlee/Pocket-Ledger.git
           fi
           
           # 保存当前的.env文件（如果存在）
           if [ -f .env ]; then
+            echo '备份现有的.env文件...'
             cp .env .env.backup
           fi
           
           # 拉取最新代码
+          echo '拉取最新代码...'
           git fetch origin main
           git reset --hard origin/main
           
           # 恢复.env文件
           if [ -f .env.backup ]; then
+            echo '恢复.env文件...'
             mv .env.backup .env
           fi
           
           # 确保Node.js 18已安装
+          echo '设置Node.js环境...'
           nvm install 18
           nvm use 18
+          node --version
           
           # 全局安装PM2（如果未安装）
           if ! command -v pm2 &> /dev/null; then
+            echo '安装PM2...'
             npm install -g pm2
           fi
           
           # 启动或重启Docker服务
+          echo '管理Docker服务...'
           docker compose down || true
           docker compose up -d
           
           # 等待数据库服务就绪
-          echo 'Waiting for database to be ready...'
-          sleep 10
+          echo '等待数据库服务就绪...'
+          sleep 15
           
           # 安装依赖
+          echo '安装项目依赖...'
           npm install
           
+          # 验证数据库连接
+          echo '验证数据库连接...'
+          if [ -f .env ]; then
+            echo '数据库URL格式检查...'
+            grep DATABASE_URL .env || echo 'WARNING: DATABASE_URL not found in .env'
+          else
+            echo 'WARNING: .env file not found'
+          fi
+          
           # 运行数据库迁移
+          echo '运行数据库迁移...'
           npx prisma generate
           npx prisma migrate deploy
           
           # 构建应用
+          echo '构建应用...'
           npm run build
           
+          # 确保生产环境变量正确设置
+          echo '设置生产环境变量...'
+          if [ ! -f .env.production ]; then
+            cp .env .env.production
+          fi
+          
           # 重启应用服务
+          echo '重启应用服务...'
           pm2 restart expense-tracker || pm2 start 'npm run start' --name \"expense-tracker\"
+          
+          # 显示应用状态
+          echo '显示应用状态...'
+          pm2 show expense-tracker
+          
+          echo '部署完成'
         "
