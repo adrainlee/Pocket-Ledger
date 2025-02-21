@@ -3,6 +3,7 @@ const path = require('path')
 
 const nextConfig = {
   reactStrictMode: true,
+  output: 'standalone', // 添加standalone输出支持Docker部署
   webpack: (config, { isServer }) => {
     // Use tr46 instead of punycode
     config.resolve.alias = {

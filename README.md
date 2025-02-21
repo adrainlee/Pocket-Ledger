@@ -1,254 +1,238 @@
-# 个人记账应用
+# Pocket Ledger
 
-一个简洁实用的个人记账应用,专注于支出记录和统计功能。
+一个使用Next.js和PostgreSQL构建的个人记账应用。
 
-## 功能特点
+## 环境要求
 
-- 支出记录(金额、分类、日期、备注)
-- 日统计(分类统计)
-- 周统计(分类统计)
-- 月统计(分类统计)
-- 账单管理(查看、编辑、删除)
-- 移动端优先的响应式设计
+- Docker (推荐 20.10.0 或更高版本)
+- Docker Compose (推荐 2.0.0 或更高版本)
 
-## 技术栈
+## 快速启动指南
 
-- 前端框架: Next.js 15
-- UI框架: Tailwind CSS
-- 数据库: PostgreSQL
-- ORM: Prisma
-- 状态管理: @tanstack/react-query
-- UI组件: @heroicons/react
-- 工具库:
-  - date-fns (日期处理)
-  - clsx & tailwind-merge (样式管理)
-  - TypeScript (类型系统)
+### 开发环境
 
-## 开发环境设置
-
-1. 克隆项目并安装依赖:
-
+1. 克隆项目后，复制环境配置文件：
 ```bash
-git clone <repository-url>
-cd expense-tracker
-npm install
-```
-
-2. 配置环境变量:
-
-```bash
+# 应用配置
 cp .env.example .env
+
+# 数据库配置
+cd docker
+cp .env.example .env
+cd ..
 ```
 
-编辑 .env 文件,设置数据库连接信息。
+2. 配置环境变量：
 
-3. 启动数据库:
+在根目录的 `.env` 文件中：
+```env
+# 环境
+NODE_ENV=development
 
-```bash
-npm run compose:up
+# 数据库连接
+DATABASE_URL="postgresql://pocket_ledger:your_password@localhost:5432/pocket_ledger?schema=public"
 ```
 
-4. 生成 Prisma 客户端并同步数据库架构:
-
-```bash
-npm run db:generate
-npm run db:push
+在 `docker/.env` 文件中：
+```env
+# 数据库配置
+POSTGRES_DB=pocket_ledger
+POSTGRES_USER=pocket_ledger
+POSTGRES_PASSWORD=your_password
 ```
 
-5. 启动开发服务器:
-
+3. 启动开发环境：
 ```bash
+# 启动数据库
+cd docker
+docker-compose up -d postgres
+
+# 启动应用（开发模式）
+cd ..
+npm install
 npm run dev
 ```
 
-应用将在 http://localhost:3000 运行。
+### 生产环境部署
 
-## 数据库管理
-
-- 启动 Prisma Studio (数据库管理界面):
+1. 复制环境配置文件：
 ```bash
-npm run db:studio
+# 应用配置
+cp .env.production.example .env
+
+# 数据库配置
+cd docker
+cp .env.example .env
+cd ..
 ```
 
-- 更新数据库架构:
+2. 配置环境变量：
+
+在根目录的 `.env` 文件中：
+```env
+# 环境
+NODE_ENV=production
+
+# 数据库连接（根据实际部署环境修改）
+DATABASE_URL="postgresql://pocket_ledger:your_password@postgres:5432/pocket_ledger?schema=public"
+```
+
+在 `docker/.env` 文件中（设置安全的密码）：
+```env
+POSTGRES_DB=pocket_ledger
+POSTGRES_USER=pocket_ledger
+POSTGRES_PASSWORD=your_secure_password
+```
+
+3. 启动生产环境：
 ```bash
-npm run db:push
+cd docker
+docker-compose up -d
 ```
 
-## 项目结构
+应用将在以下地址运行：
+- Web应用：http://localhost:3000
+- PostgreSQL：localhost:5432
+
+## Docker环境说明
+
+### 镜像版本
+
+- 基础镜像：Alpine Linux 3.20
+- Node.js：nodejs-current包（支持Node.js 20+）
+- PostgreSQL：15
+
+> 注意：由于Alpine软件包版本管理策略，实际运行的Node.js版本可能与目标版本(20.18.3)略有不同，但保证兼容性。
+
+### Docker镜像优化
+
+项目使用多阶段构建优化镜像大小：
+
+1. 依赖阶段（deps）：
+   - 只安装生产环境依赖
+   - 使用npm ci确保依赖版本一致
+
+2. 构建阶段（builder）：
+   - 安装所有依赖
+   - 生成Prisma客户端
+   - 构建Next.js应用
+
+3. 运行阶段（runner）：
+   - 最小化基础镜像
+   - 只包含必要的运行时文件
+   - 使用非root用户运行
+
+### 容器说明
+
+1. pocket_ledger_app:
+   - 运行Next.js应用
+   - 使用非root用户(nextjs)运行
+   - 包含数据库等待脚本确保正确启动顺序
+   - 自动执行数据库迁移
+
+2. pocket_ledger_db:
+   - PostgreSQL数据库
+   - 数据持久化存储
+   - 自动执行初始化脚本
+
+### 数据库迁移
+
+1. Docker环境中的迁移：
+   - 应用容器启动时会自动执行`prisma migrate deploy`
+   - 迁移在数据库就绪后、应用启动前执行
+   - 迁移失败会导致容器启动失败
+
+2. 手动迁移（开发环境）：
+   ```bash
+   # 创建新的迁移（开发环境）
+   npx prisma migrate dev
+
+   # 应用现有迁移（生产环境）
+   npx prisma migrate deploy
+   ```
+
+3. 重置数据库：
+   ```bash
+   # 停止容器
+   docker-compose down
+
+   # 删除数据卷
+   docker volume rm docker_postgres_data
+
+   # 重新启动（会重新执行迁移）
+   docker-compose up -d
+   ```
+
+## 目录结构
 
 ```
-expense-tracker/
-├── app/                    # Next.js 应用路由
-│   ├── api/               # API 路由
-│   │   ├── expenses/     # 支出相关API
-│   │   └── stats/        # 统计相关API
-│   ├── bills/            # 账单页面
-│   └── settings/         # 设置页面
-├── modules/               # 功能模块
-│   ├── bills/            # 账单模块
-│   │   ├── components/   # 账单相关组件
-│   │   ├── hooks/        # 自定义Hook
-│   │   ├── services/     # 业务逻辑
-│   │   └── types/        # 类型定义
-│   └── expense/          # 支出模块
-│       ├── components/   # 支出相关组件
-│       ├── hooks/        # 自定义Hook
-│       ├── services/     # 业务逻辑
-│       └── types/        # 类型定义
-├── shared/               # 共享资源
-│   ├── components/       # 通用组件
-│   │   ├── Navigation/  # 导航组件
-│   │   └── ui/          # UI基础组件
-│   ├── config/          # 全局配置
-│   └── utils/           # 工具函数
-├── lib/                  # 核心库
-│   └── db/              # 数据库配置
-├── prisma/              # Prisma配置
-│   └── migrations/      # 数据库迁移
-└── docker/              # Docker配置
-    └── postgres/        # PostgreSQL配置
+.
+├── Dockerfile              # 应用容器配置
+├── docker/                 # Docker相关文件
+│   ├── docker-compose.yaml # 容器编排配置
+│   ├── .env.example       # 数据库环境变量模板
+│   └── postgres/          # PostgreSQL初始化脚本
+├── prisma/                # Prisma配置和迁移
+│   ├── schema.prisma      # 数据库模型定义
+│   └── migrations/        # 数据库迁移文件
+├── .env.example           # 应用环境变量模板（开发环境）
+└── .env.production.example # 应用环境变量模板（生产环境）
 ```
 
-## 开发工具
+## 环境变量说明
 
-- 代码格式化:
-```bash
-npm run format
-```
+### 应用环境变量（.env）
 
-- 代码检查:
-```bash
-npm run lint
-```
+| 变量名 | 说明 | 示例值 |
+|--------|------|--------|
+| NODE_ENV | 运行环境 | development/production |
+| DATABASE_URL | 数据库连接URL | postgresql://pocket_ledger:pass@host:5432/pocket_ledger |
 
-- 类型检查:
-```bash
-npm run type-check
-```
+### Docker环境变量（docker/.env）
 
-## Docker 命令
+| 变量名 | 说明 | 示例值 |
+|--------|------|--------|
+| POSTGRES_DB | 数据库名称 | pocket_ledger |
+| POSTGRES_USER | 数据库用户名 | pocket_ledger |
+| POSTGRES_PASSWORD | 数据库密码 | your_password |
 
-- 启动服务:
-```bash
-npm run compose:up
-```
+## 开发说明
 
-- 停止服务:
-```bash
-npm run compose:down
-```
+1. 开发环境和生产环境的主要区别：
+   - 开发环境：
+     * 使用本地数据库（localhost）
+     * 支持热重载
+     * 显示详细错误信息
+   - 生产环境：
+     * 使用容器化数据库
+     * 优化的构建输出
+     * 最小化错误信息
 
-## 生产环境部署
+## 注意事项
 
-1. 安装PM2:
-```bash
-npm install -g pm2
-```
+1. 确保生产环境使用强密码
+2. 不要将包含敏感信息的.env文件提交到代码仓库
+3. 定期备份数据库数据
+4. 在生产环境部署前测试所有环境变量配置
 
-2. 构建应用:
-```bash
-npm run build
-```
+5. Docker镜像优化提示：
+   ```bash
+   # 构建优化后的镜像
+   docker-compose build --no-cache
 
-3. 使用PM2启动应用:
-```bash
-pm2 start npm --name "expense-tracker" -- start
-```
+   # 查看镜像大小
+   docker images
 
-## PM2进程管理
+   # 清理未使用的镜像和缓存
+   docker system prune -a
+   ```
 
-PM2是Node.js应用程序的生产进程管理器，具有内置的负载均衡器。以下是常用的PM2命令：
+6. Node.js版本说明：
+   - 项目目标版本：Node.js 20.18.3
+   - 实际运行版本：nodejs-current（Alpine包）
+   - 两者保持API兼容性，不影响应用运行
 
-### 基本操作
-
-- 启动应用:
-```bash
-pm2 start npm --name "expense-tracker" -- start
-```
-
-- 停止应用:
-```bash
-pm2 stop expense-tracker
-```
-
-- 重启应用:
-```bash
-pm2 restart expense-tracker
-```
-
-- 删除应用:
-```bash
-pm2 delete expense-tracker
-```
-
-### 监控和日志
-
-- 查看应用状态:
-```bash
-pm2 status
-```
-
-- 监控CPU和内存使用:
-```bash
-pm2 monit
-```
-
-- 查看日志:
-```bash
-pm2 logs expense-tracker
-```
-
-### 集群模式
-
-- 启动集群模式(根据CPU核心数):
-```bash
-pm2 start npm --name "expense-tracker" -i max -- start
-```
-
-- 指定进程数量:
-```bash
-pm2 start npm --name "expense-tracker" -i 4 -- start
-```
-
-### 自动重启
-
-- 设置开机自启:
-```bash
-pm2 startup
-pm2 save
-```
-
-- 配置文件(ecosystem.config.js)示例:
-```javascript
-module.exports = {
-  apps: [{
-    name: "expense-tracker",
-    script: "npm",
-    args: "start",
-    instances: "max",
-    exec_mode: "cluster",
-    watch: false,
-    max_memory_restart: "1G",
-    env: {
-      NODE_ENV: "production"
-    }
-  }]
-}
-```
-
-启动配置文件:
-```bash
-pm2 start ecosystem.config.js
-```
-
-## 系统要求
-
-- Node.js 18+
-- Docker & Docker Compose
-- PostgreSQL 14+
-- PM2 (生产环境)
-
-## 许可证
-
-MIT
+7. 数据库连接说明：
+   - 所有配置统一使用pocket_ledger作为数据库用户名
+   - 确保数据库密码在所有环境中保持一致
+   - 生产环境建议使用更强的密码
