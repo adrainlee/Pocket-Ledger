@@ -21,6 +21,7 @@ services:
     build:
       context: ..
       dockerfile: Dockerfile
+    image: pocket-ledger:latest
     container_name: pocket_ledger_app
     depends_on:
       postgres:
