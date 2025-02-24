@@ -1,58 +1,41 @@
-# 依赖阶段
-FROM alpine:3.20 AS deps
-ENV NODE_VERSION 20.18.3
-RUN apk add --no-cache nodejs-current npm
-
-WORKDIR /app
-COPY package*.json ./
-RUN npm ci --production
-
-# 构建阶段
-FROM alpine:3.20 AS builder
-ENV NODE_VERSION 20.18.3
-RUN apk add --no-cache nodejs-current npm
+FROM node:20-alpine
 WORKDIR /app
 
-COPY package*.json ./
-RUN npm ci
+# 设置生产环境
+ENV NODE_ENV=production
 
+# 设置PostgreSQL连接环境变量的默认值
+ENV POSTGRES_DB=pocket_ledger
+ENV POSTGRES_USER=pocket_ledger
+ENV POSTGRES_PASSWORD=pocket_ledger_pass
+ENV DATABASE_URL=postgres://pocket_ledger:pocket_ledger_pass@postgres:5432/pocket_ledger
+
+# 安装postgresql-client
+RUN apk add --no-cache postgresql-client
+
+# 复制package文件和锁文件
+COPY package*.json ./
+
+# 只安装生产依赖
+RUN npm ci --omit=dev --no-audit --prefer-offline --retry 5
+
+# 复制构建好的文件和必要的运行时文件
+COPY .next ./.next
 COPY prisma ./prisma
-COPY . .
+COPY server.js ./
+COPY next.config.js ./
+COPY docker/wait-for-postgres.sh ./
+
+# 确保wait-for-postgres.sh有执行权限
+RUN chmod +x ./wait-for-postgres.sh
 
 # 生成Prisma客户端
-RUN npx prisma generate
+RUN npx prisma generate && \
+    npm cache clean --force
 
-# 构建应用
-RUN npm run build
+# 健康检查
+HEALTHCHECK --interval=30s --timeout=10s --retries=3 \
+    CMD curl --fail http://localhost:3000/api/health || exit 1
 
-# 生产阶段
-FROM alpine:3.20 AS runner
-ENV NODE_VERSION 20.18.3
-RUN apk add --no-cache nodejs-current postgresql-client
-
-WORKDIR /app
-
-# 创建非root用户
-RUN addgroup --system --gid 1001 nodejs && \
-    adduser --system --uid 1001 nextjs
-
-# 复制等待脚本并设置权限
-COPY docker/wait-for-postgres.sh /wait-for-postgres.sh
-RUN chmod +x /wait-for-postgres.sh
-
-# 只复制必要的文件
-COPY --from=deps /app/node_modules ./node_modules
-COPY --from=builder /app/prisma ./prisma
-COPY --from=builder /app/.next/standalone ./
-COPY --from=builder /app/.next/static ./.next/static
-
-# 设置权限
-RUN chown -R nextjs:nodejs .
-
-USER nextjs
-
-# 暴露3000端口
 EXPOSE 3000
-
-# 启动应用
-CMD ["node", "server.js"]
+CMD [ "./wait-for-postgres.sh", "node", "server.js" ]

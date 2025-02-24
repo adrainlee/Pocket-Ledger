@@ -1,17 +1,15 @@
 'use client'
 
 import { useState } from 'react'
-import { Button } from '@/shared/components/ui/Button'
 import { Card, CardHeader, CardTitle, CardContent } from '@/shared/components/ui/Card'
 import { formatDate } from '@/shared/utils/date'
-import { ExpenseCategory } from '@prisma/client'
 import { useCategories } from '../hooks/useCategories'
-import { CATEGORY_LABELS } from '../types'
+import { BUILTIN_CATEGORIES } from '../types'
 
 interface ExpenseFormProps {
   onSubmit: (data: {
     amount: number
-    category: ExpenseCategory
+    category: string
     date: Date
     note?: string
   }) => Promise<void>
@@ -20,15 +18,15 @@ interface ExpenseFormProps {
 
 export function ExpenseForm({ onSubmit, isLoading }: ExpenseFormProps) {
   const [amount, setAmount] = useState<string>('')
-  const [category, setCategory] = useState<ExpenseCategory>(ExpenseCategory.FOOD)
+  const [category, setCategory] = useState<string>('FOOD')
   const [date, setDate] = useState<string>(formatDate(new Date()))
   const [note, setNote] = useState<string>('')
   const { categories, isLoading: isCategoriesLoading } = useCategories()
 
   // 确保总是有可用的分类选项
-  const availableCategories = isCategoriesLoading ?
-    Object.entries(CATEGORY_LABELS).map(([key, label]) => ({ key, label })) :
-    categories
+  const availableCategories: Array<{ key: string; label: string }> = isCategoriesLoading
+    ? Object.entries(BUILTIN_CATEGORIES).map(([key, label]) => ({ key, label }))
+    : categories
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -43,7 +41,7 @@ export function ExpenseForm({ onSubmit, isLoading }: ExpenseFormProps) {
 
     // Reset form
     setAmount('')
-    setCategory(ExpenseCategory.FOOD)
+    setCategory('FOOD')
     setDate(formatDate(new Date()))
     setNote('')
   }
@@ -73,7 +71,7 @@ export function ExpenseForm({ onSubmit, isLoading }: ExpenseFormProps) {
             <label className="block text-sm font-medium mb-1">分类</label>
             <select
               value={category}
-              onChange={(e) => setCategory(e.target.value as ExpenseCategory)}
+              onChange={(e) => setCategory(e.target.value)}
               className="w-full rounded border-gray-200 focus:border-primary focus:ring-1 focus:ring-primary"
               disabled={isCategoriesLoading}
             >
@@ -107,9 +105,38 @@ export function ExpenseForm({ onSubmit, isLoading }: ExpenseFormProps) {
             />
           </div>
 
-          <Button type="submit" fullWidth isLoading={isLoading}>
-            保存
-          </Button>
+          <button
+            type="submit"
+            className="w-full h-10 px-4 rounded bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 flex items-center justify-center"
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <span className="inline-flex items-center">
+                <svg
+                  className="animate-spin -ml-1 mr-2 h-4 w-4"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                >
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  />
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                  />
+                </svg>
+                加载中...
+              </span>
+            ) : (
+              '保存'
+            )}
+          </button>
         </form>
       </CardContent>
     </Card>

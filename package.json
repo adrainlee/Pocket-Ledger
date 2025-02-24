@@ -18,13 +18,14 @@
     "@eslint/config-array": "^0.19.2",
     "@eslint/object-schema": "^2.1.6",
     "@heroicons/react": "^2.1.1",
-    "@prisma/client": "^6.3.1",
+    "@prisma/client": "^6.4.1",
     "@tanstack/react-query": "latest",
     "clsx": "^2.1.0",
     "date-fns": "^3.3.1",
     "glob": "^11.0.1",
     "inflight": "^1.0.6",
     "next": "^15.1.6",
+    "prisma": "^6.4.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "rimraf": "^6.0.1",
@@ -43,7 +44,6 @@
     "eslint-config-next": "^15.1.6",
     "postcss": "^8.4.35",
     "prettier": "^3.2.5",
-    "prisma": "latest",
     "tailwindcss": "^3.4.1",
     "typescript": "~5.3.3"
   }

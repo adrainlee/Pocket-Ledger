@@ -5,7 +5,6 @@ import type {
   BillsQueryParams,
   WeeklyStats,
   MonthlyStats,
-  ExpenseCategory,
   Expense,
 } from '../types'
 import {
@@ -29,14 +28,14 @@ const parseExpense = (data: any): Expense => ({
 // Helper function to calculate stats
 const calculateStats = (expenses: Expense[]) => {
   const total = expenses.reduce((sum, expense) => sum + expense.amount, 0)
-  const categoryMap = new Map<ExpenseCategory, number>()
+  const categoryMap = new Map<string, number>()
 
   expenses.forEach((expense) => {
     const current = categoryMap.get(expense.category) || 0
     categoryMap.set(expense.category, current + expense.amount)
   })
 
-  const categories = Array.from(categoryMap.entries()).map(([category, amount]) => ({
+  const categories = Array.from(categoryMap.entries()).map(([category, amount]: [string, number]) => ({
     category,
     amount,
     percentage: (amount / total) * 100,
@@ -163,10 +162,22 @@ export const expenseService = {
       },
     })
 
-    const mappedExpenses = expenses.map((e) => ({
-      ...e,
+    const mappedExpenses = expenses.map((e: {
+      id: number;
+      amount: any;
+      category: string;
+      date: Date;
+      note: string | null;
+      createdAt: Date;
+      updatedAt: Date;
+    }) => ({
+      id: e.id,
       amount: Number(e.amount),
+      category: e.category,
+      date: new Date(e.date),
       note: e.note || undefined,
+      createdAt: new Date(e.createdAt),
+      updatedAt: new Date(e.updatedAt)
     }))
 
     return {
@@ -188,10 +199,22 @@ export const expenseService = {
       },
     })
 
-    const mappedExpenses = expenses.map((e) => ({
-      ...e,
+    const mappedExpenses = expenses.map((e: {
+      id: number;
+      amount: any;
+      category: string;
+      date: Date;
+      note: string | null;
+      createdAt: Date;
+      updatedAt: Date;
+    }) => ({
+      id: e.id,
       amount: Number(e.amount),
+      category: e.category,
+      date: new Date(e.date),
       note: e.note || undefined,
+      createdAt: new Date(e.createdAt),
+      updatedAt: new Date(e.updatedAt)
     }))
 
     const date = new Date()

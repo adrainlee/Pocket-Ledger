@@ -10,13 +10,11 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}" ]
       interval: 5s
       timeout: 5s
       retries: 5
-      start_period: 10s
     restart: unless-stopped
 
   app:
@@ -24,20 +22,17 @@ services:
       context: ..
       dockerfile: Dockerfile
     container_name: pocket_ledger_app
-    command: [ "/wait-for-postgres.sh", "node", "server.js" ]
-    ports:
-      - "3000:3000"
-    environment:
-      - NODE_ENV=production
-      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=public
-      - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-      - POSTGRES_DB=${POSTGRES_DB}
-    volumes:
-      - ../prisma:/app/prisma
     depends_on:
       postgres:
         condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      NODE_ENV: production
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./wait-for-postgres.sh:/app/wait-for-postgres.sh
+    command: sh -c "chmod +x ./wait-for-postgres.sh && ./wait-for-postgres.sh node server.js"
     restart: unless-stopped
 
 volumes:

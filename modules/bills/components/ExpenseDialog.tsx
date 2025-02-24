@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { ExpenseCategory, Prisma } from '@prisma/client'
+import { Prisma } from '@prisma/client'
 import { Button } from '@/shared/components/ui/Button'
 import { EditExpenseDialogProps } from '../types'
 import { formatDate } from '@/shared/utils/date'
@@ -15,7 +15,7 @@ export function ExpenseDialog({
 }: EditExpenseDialogProps) {
   const [formData, setFormData] = useState({
     amount: '',
-    category: 'FOOD' as ExpenseCategory,
+    category: 'FOOD',
     date: formatDate(new Date()),
     note: '',
   })
@@ -70,7 +70,7 @@ export function ExpenseDialog({
               onChange={(e) =>
                 setFormData({
                   ...formData,
-                  category: e.target.value as ExpenseCategory,
+                  category: e.target.value,
                 })
               }
               className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"

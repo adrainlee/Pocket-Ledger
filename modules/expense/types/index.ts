@@ -1,21 +1,7 @@
-import { ExpenseCategory as PrismaExpenseCategory } from '@prisma/client'
-
-export type ExpenseCategory =
-  | 'FOOD'
-  | 'TRANSPORT'
-  | 'MEDICAL'
-  | 'JD'
-  | 'TAOBAO'
-  | 'PDD'
-  | 'SUPERMARKET'
-  | 'HOUSING'
-  | 'COMM'
-  | 'OTHER'
-
 export interface Expense {
   id: number
   amount: number
-  category: ExpenseCategory
+  category: string
   date: Date
   note?: string
   createdAt: Date
@@ -24,7 +10,7 @@ export interface Expense {
 
 export interface CreateExpenseDTO {
   amount: number
-  category: ExpenseCategory
+  category: string
   date: Date
   note?: string
 }
@@ -36,7 +22,7 @@ export interface UpdateExpenseDTO extends Partial<CreateExpenseDTO> {
 export interface ExpenseStats {
   total: number
   categories: {
-    category: ExpenseCategory
+    category: string
     amount: number
     percentage: number
   }[]
@@ -59,7 +45,7 @@ export interface MonthlyStats extends ExpenseStats {
 export interface ExpenseFilters {
   startDate?: Date
   endDate?: Date
-  category?: ExpenseCategory
+  category?: string
 }
 
 export interface BillsQueryParams {
@@ -67,8 +53,8 @@ export interface BillsQueryParams {
   month: number
 }
 
-// Category mapping for display
-export const CATEGORY_LABELS: Record<ExpenseCategory, string> = {
+// 内置分类
+export const BUILTIN_CATEGORIES = {
   FOOD: '餐饮',
   TRANSPORT: '交通',
   MEDICAL: '医疗',
@@ -79,6 +65,10 @@ export const CATEGORY_LABELS: Record<ExpenseCategory, string> = {
   HOUSING: '居住',
   COMM: '通讯',
   OTHER: '其他',
+} as const
+
+export const CATEGORY_LABELS: Record<string, string> = {
+  ...BUILTIN_CATEGORIES
 }
 
 export interface CategoryItem {
@@ -86,5 +76,4 @@ export interface CategoryItem {
   label: string
 }
 
-
-export type CategoryKey = keyof typeof CATEGORY_LABELS
+export type CategoryKey = keyof typeof BUILTIN_CATEGORIES

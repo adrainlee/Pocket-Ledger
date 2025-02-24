@@ -3,6 +3,21 @@ import { prisma } from '@/lib/db'
 import { startOfMonth, endOfMonth } from 'date-fns'
 import { Prisma } from '@prisma/client'
 import { revalidatePath } from 'next/cache'
+import { BUILTIN_CATEGORIES } from '@/modules/expense/types'
+
+const isValidCategory = async (category: string): Promise<boolean> => {
+  // 检查是否是内置分类
+  if (category in BUILTIN_CATEGORIES) {
+    return true
+  }
+
+  // 检查是否是自定义分类
+  const customCategory = await prisma.category.findUnique({
+    where: { key: category }
+  })
+
+  return !!customCategory
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -39,6 +54,13 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const data = await request.json()
+
+    if (!(await isValidCategory(data.category))) {
+      return NextResponse.json(
+        { error: '无效的支出分类' },
+        { status: 400 }
+      )
+    }
 
     const expense = await prisma.expense.create({
       data: {

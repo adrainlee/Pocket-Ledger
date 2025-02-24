@@ -86,8 +86,9 @@ export default function SettingsPage() {
         throw new Error(data.error || '添加分类失败')
       }
 
-      // 重置表单
+      // 重置表单并刷新分类列表
       setNewCategory({ key: '', label: '' })
+      await fetchCategories() // 刷新分类列表
       window.alert('分类添加成功')
     } catch (error) {
       console.error('添加分类时发生错误:', error)

@@ -23,7 +23,15 @@ export const useCategories = () => {
                 throw new Error('获取分类列表失败')
             }
             const data = await response.json()
-            setCategories(data)
+
+            // 确保新的自定义分类被正确合并
+            const updatedCategories = [
+                ...builtInCategories,
+                ...data.filter((item: CategoryItem) =>
+                    !builtInCategories.some(builtin => builtin.key === item.key)
+                )
+            ]
+            setCategories(updatedCategories)
         } catch (error) {
             console.error('获取分类列表时发生错误:', error)
             // 如果获取失败，至少保留内置分类

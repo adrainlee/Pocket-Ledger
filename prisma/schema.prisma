@@ -1,5 +1,6 @@
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
 }
 
 datasource db {
@@ -36,7 +37,7 @@ model Category {
 model Expense {
   id        Int             @id @default(autoincrement())
   amount    Decimal         @db.Decimal(10, 2)
-  category  ExpenseCategory
+  category  String         // 改为String类型以支持自定义分类
   date      DateTime        @db.Date
   note      String?
   createdAt DateTime        @default(now()) @map("created_at") @db.Timestamptz
