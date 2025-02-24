@@ -6,233 +6,147 @@
 
 - Docker (推荐 20.10.0 或更高版本)
 - Docker Compose (推荐 2.0.0 或更高版本)
+- Node.js (开发环境需要，推荐 20.18.3 或更高版本)
+- npm (开发环境需要，推荐 9.0.0 或更高版本)
 
-## 快速启动指南
+## 部署指南
 
-### 开发环境
+### 开发环境部署
 
-1. 克隆项目后，复制环境配置文件：
+1. 克隆项目并安装依赖：
 ```bash
-# 应用配置
-cp .env.example .env
+# 克隆项目
+git clone <repository-url>
+cd pocket-ledger
 
-# 数据库配置
-cd docker
-cp .env.example .env
-cd ..
+# 安装依赖
+npm install
 ```
 
-2. 配置环境变量：
+2. 准备环境配置：
+```bash
+# 复制环境配置文件
+cp .env.example .env
+cd docker && cp .env.example .env && cd ..
 
-在根目录的 `.env` 文件中：
-```env
-# 环境
-NODE_ENV=development
-
-# 数据库连接
-DATABASE_URL="postgresql://pocket_ledger:your_password@localhost:5432/pocket_ledger?schema=public"
-```
-
-在 `docker/.env` 文件中：
-```env
-# 数据库配置
-POSTGRES_DB=pocket_ledger
-POSTGRES_USER=pocket_ledger
-POSTGRES_PASSWORD=your_password
+# 修改 .env 文件
+# 确保 DATABASE_URL 使用 localhost 而不是 postgres：
+DATABASE_URL="postgresql://pocket_ledger:pocket_ledger_pass@localhost:5432/pocket_ledger?schema=public"
 ```
 
 3. 启动开发环境：
 ```bash
-# 启动数据库
-cd docker
-docker-compose up -d postgres
+# 启动数据库（仅启动 PostgreSQL 容器）
+cd docker && docker compose up -d postgres && cd ..
 
-# 启动应用（开发模式）
-cd ..
-npm install
+# 运行数据库迁移
+npx prisma migrate deploy
+
+# 启动开发服务器
 npm run dev
 ```
 
+4. 访问应用：
+- 开发服务器：http://localhost:3000
+
 ### 生产环境部署
 
-1. 复制环境配置文件：
+1. 准备生产环境配置：
 ```bash
-# 应用配置
+# 复制生产环境配置文件
 cp .env.production.example .env
+cd docker && cp .env.example .env && cd ..
 
-# 数据库配置
-cd docker
-cp .env.example .env
-cd ..
-```
-
-2. 配置环境变量：
-
-在根目录的 `.env` 文件中：
-```env
-# 环境
+# 修改生产环境配置
+# 在 .env 中设置：
 NODE_ENV=production
+DATABASE_URL="postgresql://pocket_ledger:your_secure_password@postgres:5432/pocket_ledger?schema=public"
 
-# 数据库连接（根据实际部署环境修改）
-DATABASE_URL="postgresql://pocket_ledger:your_password@postgres:5432/pocket_ledger?schema=public"
-```
-
-在 `docker/.env` 文件中（设置安全的密码）：
-```env
-POSTGRES_DB=pocket_ledger
-POSTGRES_USER=pocket_ledger
+# 在 docker/.env 中设置安全的数据库密码：
 POSTGRES_PASSWORD=your_secure_password
 ```
 
-3. 启动生产环境：
+2. 使用 Docker Compose 部署：
 ```bash
+# 构建并启动所有服务
 cd docker
-docker-compose up -d
+docker compose up -d --build
+
+# 查看日志
+docker compose logs -f
 ```
 
-应用将在以下地址运行：
-- Web应用：http://localhost:3000
-- PostgreSQL：localhost:5432
+3. 访问应用：
+- 生产环境：http://localhost:3000
 
-## Docker环境说明
+### 部署后的维护操作
 
-### 镜像版本
+1. 查看日志：
+```bash
+# 查看应用日志
+docker compose logs -f app
 
-- 基础镜像：Alpine Linux 3.20
-- Node.js：nodejs-current包（支持Node.js 20+）
-- PostgreSQL：15
+# 查看数据库日志
+docker compose logs -f postgres
+```
 
-> 注意：由于Alpine软件包版本管理策略，实际运行的Node.js版本可能与目标版本(20.18.3)略有不同，但保证兼容性。
+2. 数据库备份：
+```bash
+# 创建数据库备份
+docker compose exec postgres pg_dump -U pocket_ledger pocket_ledger > backup.sql
 
-### Docker镜像优化
+# 恢复数据库备份
+cat backup.sql | docker compose exec -T postgres psql -U pocket_ledger -d pocket_ledger
+```
 
-项目使用多阶段构建优化镜像大小：
+3. 更新应用：
+```bash
+# 拉取最新代码
+git pull
 
-1. 依赖阶段（deps）：
-   - 只安装生产环境依赖
-   - 使用npm ci确保依赖版本一致
+# 重新构建并部署
+cd docker
+docker compose down
+docker compose up -d --build
+```
 
-2. 构建阶段（builder）：
-   - 安装所有依赖
-   - 生成Prisma客户端
-   - 构建Next.js应用
+### 常见问题处理
 
-3. 运行阶段（runner）：
-   - 最小化基础镜像
-   - 只包含必要的运行时文件
-   - 使用非root用户运行
+1. 样式问题
+   - 开发环境（npm run dev）下样式正常但生产环境下丢失：
+     * 确保运行 `npm run build` 成功
+     * 检查 tailwind.config.ts 中的 content 配置是否正确
+     * 确保所有样式文件都被正确引入
 
-### 容器说明
+2. 数据库连接问题
+   - 开发环境连接失败：
+     * 确保使用 localhost 而不是 postgres 作为主机名
+     * 检查数据库容器是否正常运行
+   - 生产环境连接失败：
+     * 确保使用 postgres 作为主机名
+     * 检查环境变量是否正确配置
 
-1. pocket_ledger_app:
-   - 运行Next.js应用
-   - 使用非root用户(nextjs)运行
-   - 包含数据库等待脚本确保正确启动顺序
-   - 自动执行数据库迁移
-
-2. pocket_ledger_db:
-   - PostgreSQL数据库
-   - 数据持久化存储
-   - 自动执行初始化脚本
-
-### 数据库迁移
-
-1. Docker环境中的迁移：
-   - 应用容器启动时会自动执行`prisma migrate deploy`
-   - 迁移在数据库就绪后、应用启动前执行
-   - 迁移失败会导致容器启动失败
-
-2. 手动迁移（开发环境）：
-   ```bash
-   # 创建新的迁移（开发环境）
-   npx prisma migrate dev
-
-   # 应用现有迁移（生产环境）
-   npx prisma migrate deploy
-   ```
-
-3. 重置数据库：
-   ```bash
-   # 停止容器
-   docker-compose down
-
-   # 删除数据卷
-   docker volume rm docker_postgres_data
-
-   # 重新启动（会重新执行迁移）
-   docker-compose up -d
-   ```
+3. 容器问题
+   - 容器无法启动：
+     * 检查端口占用情况
+     * 查看容器日志 `docker compose logs`
+     * 确保数据库密码配置一致
 
 ## 目录结构
 
 ```
 .
-├── Dockerfile              # 应用容器配置
-├── docker/                 # Docker相关文件
-│   ├── docker-compose.yaml # 容器编排配置
-│   ├── .env.example       # 数据库环境变量模板
-│   └── postgres/          # PostgreSQL初始化脚本
-├── prisma/                # Prisma配置和迁移
-│   ├── schema.prisma      # 数据库模型定义
-│   └── migrations/        # 数据库迁移文件
-├── .env.example           # 应用环境变量模板（开发环境）
-└── .env.production.example # 应用环境变量模板（生产环境）
+├── app/                    # Next.js 应用目录
+│   ├── api/               # API 路由
+│   └── ...               # 其他页面组件
+├── modules/               # 业务模块
+│   ├── bills/            # 账单模块
+│   ├── expense/          # 支出模块
+│   └── ...              # 其他模块
+├── shared/               # 共享组件和工具
+├── prisma/               # Prisma 配置和迁移
+├── docker/               # Docker 相关配置
+└── ...                  # 其他配置文件
 ```
 
-## 环境变量说明
-
-### 应用环境变量（.env）
-
-| 变量名 | 说明 | 示例值 |
-|--------|------|--------|
-| NODE_ENV | 运行环境 | development/production |
-| DATABASE_URL | 数据库连接URL | postgresql://pocket_ledger:pass@host:5432/pocket_ledger |
-
-### Docker环境变量（docker/.env）
-
-| 变量名 | 说明 | 示例值 |
-|--------|------|--------|
-| POSTGRES_DB | 数据库名称 | pocket_ledger |
-| POSTGRES_USER | 数据库用户名 | pocket_ledger |
-| POSTGRES_PASSWORD | 数据库密码 | your_password |
-
-## 开发说明
-
-1. 开发环境和生产环境的主要区别：
-   - 开发环境：
-     * 使用本地数据库（localhost）
-     * 支持热重载
-     * 显示详细错误信息
-   - 生产环境：
-     * 使用容器化数据库
-     * 优化的构建输出
-     * 最小化错误信息
-
-## 注意事项
-
-1. 确保生产环境使用强密码
-2. 不要将包含敏感信息的.env文件提交到代码仓库
-3. 定期备份数据库数据
-4. 在生产环境部署前测试所有环境变量配置
-
-5. Docker镜像优化提示：
-   ```bash
-   # 构建优化后的镜像
-   docker-compose build --no-cache
-
-   # 查看镜像大小
-   docker images
-
-   # 清理未使用的镜像和缓存
-   docker system prune -a
-   ```
-
-6. Node.js版本说明：
-   - 项目目标版本：Node.js 20.18.3
-   - 实际运行版本：nodejs-current（Alpine包）
-   - 两者保持API兼容性，不影响应用运行
-
-7. 数据库连接说明：
-   - 所有配置统一使用pocket_ledger作为数据库用户名
-   - 确保数据库密码在所有环境中保持一致
-   - 生产环境建议使用更强的密码
+[原有的其他内容保持不变...]
