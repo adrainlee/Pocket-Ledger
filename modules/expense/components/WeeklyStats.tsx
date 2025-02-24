@@ -4,7 +4,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/shared/components/ui
 import type { WeeklyStats as WeeklyStatsType } from '../types'
 import { formatCurrency, formatPercentage } from '@/shared/utils/currency'
 import { formatDate } from '@/shared/utils/date'
-import { CATEGORY_LABELS } from '../types'
+import { useCategoryLabels } from '../hooks/useCategoryLabels'
 
 interface WeeklyStatsProps {
   stats: WeeklyStatsType
@@ -12,7 +12,9 @@ interface WeeklyStatsProps {
 }
 
 export function WeeklyStats({ stats, isLoading }: WeeklyStatsProps) {
-  if (isLoading) {
+  const { categoryLabels, isLoading: isLoadingLabels } = useCategoryLabels()
+
+  if (isLoading || isLoadingLabels) {
     return (
       <Card>
         <CardHeader>
@@ -44,7 +46,7 @@ export function WeeklyStats({ stats, isLoading }: WeeklyStatsProps) {
                 key={category}
                 className="flex items-center justify-between p-2 even:bg-gray-50 rounded"
               >
-                <span className="text-sm">{CATEGORY_LABELS[category]}</span>
+                <span className="text-sm">{categoryLabels[category] || category}</span>
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-medium">{formatCurrency(amount)}</span>
                   <span className="text-sm text-foreground/60">

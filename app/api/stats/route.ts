@@ -2,13 +2,39 @@ import { prisma } from '@/lib/db'
 import { NextResponse } from 'next/server'
 import { getCurrentWeekRange, getCurrentMonthRange } from '@/shared/utils/date'
 import type { Expense } from '@prisma/client'
+import { CATEGORY_LABELS } from '@/modules/expense/types'
+
+// 获取分类标签映射
+const getCategoryLabels = async () => {
+  // 获取内置分类
+  const builtInLabels = { ...CATEGORY_LABELS }
+
+  // 获取自定义分类
+  const customCategories = await prisma.category.findMany({
+    select: {
+      key: true,
+      label: true,
+    },
+  })
+
+  // 合并内置分类和自定义分类
+  const allLabels: Record<string, string> = { ...builtInLabels }
+  customCategories.forEach((category) => {
+    allLabels[category.key] = category.label
+  })
+
+  return allLabels
+}
 
 // Helper function to calculate stats
-const calculateStats = (expenses: Expense[]) => {
+const calculateStats = async (expenses: Expense[]) => {
+  const categoryLabels = await getCategoryLabels()
+
   const mappedExpenses = expenses.map((e) => ({
     id: e.id,
     amount: Number(e.amount),
     category: e.category,
+    categoryLabel: categoryLabels[e.category] || e.category, // 使用标签，如果没有则使用原始值
     date: e.date,
     note: e.note || undefined,
     createdAt: e.createdAt,
@@ -19,8 +45,9 @@ const calculateStats = (expenses: Expense[]) => {
   const categoryMap = new Map<string, number>()
 
   mappedExpenses.forEach((expense) => {
-    const current = categoryMap.get(expense.category) || 0
-    categoryMap.set(expense.category, current + expense.amount)
+    const categoryKey = expense.categoryLabel // 使用分类标签而不是key
+    const current = categoryMap.get(categoryKey) || 0
+    categoryMap.set(categoryKey, current + expense.amount)
   })
 
   const categories = Array.from(categoryMap.entries()).map(([category, amount]) => ({
@@ -68,22 +95,22 @@ export async function GET() {
     })
 
     // Calculate stats
-    const weeklyStats = {
-      ...calculateStats(weeklyExpenses),
-      startDate: weekRange.startDate,
-      endDate: weekRange.endDate,
-    }
-
-    const monthlyStats = {
-      ...calculateStats(monthlyExpenses),
-      year: date.getFullYear(),
-      month: date.getMonth() + 1,
-    }
-
-    const dailyStats = {
-      ...calculateStats(dailyExpenses),
-      date: today,
-    }
+    const [dailyStats, weeklyStats, monthlyStats] = await Promise.all([
+      calculateStats(dailyExpenses).then(stats => ({
+        ...stats,
+        date: today,
+      })),
+      calculateStats(weeklyExpenses).then(stats => ({
+        ...stats,
+        startDate: weekRange.startDate,
+        endDate: weekRange.endDate,
+      })),
+      calculateStats(monthlyExpenses).then(stats => ({
+        ...stats,
+        year: date.getFullYear(),
+        month: date.getMonth() + 1,
+      }))
+    ])
 
     return NextResponse.json({
       daily: dailyStats,

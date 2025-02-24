@@ -2,8 +2,8 @@
 
 import { Card } from '@/shared/components/ui/Card'
 import type { DailyStats as DailyStatsType } from '../types'
-import { CATEGORY_LABELS } from '../types'
 import { format } from 'date-fns'
+import { useCategoryLabels } from '../hooks/useCategoryLabels'
 
 interface Props {
   stats: DailyStatsType
@@ -11,7 +11,9 @@ interface Props {
 }
 
 export function DailyStats({ stats, isLoading }: Props) {
-  if (isLoading) {
+  const { categoryLabels, isLoading: isLoadingLabels } = useCategoryLabels()
+
+  if (isLoading || isLoadingLabels) {
     return (
       <Card>
         <div className="p-4">
@@ -41,7 +43,7 @@ export function DailyStats({ stats, isLoading }: Props) {
                   key={category}
                   className="flex items-center justify-between text-sm p-2 even:bg-gray-50"
                 >
-                  <span>{CATEGORY_LABELS[category]}</span>
+                  <span>{categoryLabels[category] || category}</span>
                   <span className="text-gray-500">
                     ¥{amount.toFixed(2)} ({percentage.toFixed(1)}%)
                   </span>

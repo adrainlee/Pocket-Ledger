@@ -4,7 +4,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/shared/components/ui
 import type { MonthlyStats as MonthlyStatsType } from '../types'
 import { formatCurrency, formatPercentage } from '@/shared/utils/currency'
 import { formatMonthYear } from '@/shared/utils/date'
-import { CATEGORY_LABELS } from '../types'
+import { useCategoryLabels } from '../hooks/useCategoryLabels'
 
 interface MonthlyStatsProps {
   stats: MonthlyStatsType
@@ -12,7 +12,9 @@ interface MonthlyStatsProps {
 }
 
 export function MonthlyStats({ stats, isLoading }: MonthlyStatsProps) {
-  if (isLoading) {
+  const { categoryLabels, isLoading: isLoadingLabels } = useCategoryLabels()
+
+  if (isLoading || isLoadingLabels) {
     return (
       <Card>
         <CardHeader>
@@ -42,7 +44,7 @@ export function MonthlyStats({ stats, isLoading }: MonthlyStatsProps) {
             {stats.categories.map(({ category, amount, percentage }) => (
               <div key={category} className="space-y-1 p-2 even:bg-gray-50 rounded">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm">{CATEGORY_LABELS[category]}</span>
+                  <span className="text-sm">{categoryLabels[category] || category}</span>
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-medium">{formatCurrency(amount)}</span>
                     <span className="text-sm text-foreground/60 w-14 text-right">
